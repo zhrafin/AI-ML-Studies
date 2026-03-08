@@ -5,23 +5,36 @@ from langchain_groq import ChatGroq
 from langchain.agents import create_agent
 from langchain_community.utilities import GoogleSerperAPIWrapper
 import streamlit as st
+from langgraph.checkpoint.memory import InMemorySaver
 
 st.title("Ask GPT-OSS with Search Tool")
 st.markdown("Test GPT-OSS-20b")
 
 llm = ChatGroq(model="openai/gpt-oss-20b")
 search = GoogleSerperAPIWrapper()
+tools = [search.run]
+
+# ami jodi normal memory variable er moddhe rakhi tahole dekhga jabe proti new question e memory address change hobe
+# thats why created st.session_state er memory variable 
+# if make sure korbe j ekbar object toiri houar por memory object abar na toiri hoy
+if "memory" not in st.session_state: 
+    st.session_state.memory = InMemorySaver()
 
 agent = create_agent(
     model=llm, 
-    tools=[search.run],
+    tools=tools,
+    checkpointer=st.session_state.memory,
     system_prompt="You are an agent and You can search for any questions on Google"
 )
 
+query = st.chat_input("Ask anything:")
+
 # If "messages" does not exist, this line creates it and sets it to an empty list.
+#Prev chat dhore rakhar jonno use hocche
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+#Existing message print kore
 for message in st.session_state.messages:
     role = message["role"] # jei role sheta define korte hobe. ekhane user
     content = message["content"] # user query
@@ -29,15 +42,20 @@ for message in st.session_state.messages:
     st.chat_message(role).markdown(content)
 
 
-query = st.chat_input("Ask anything:")
+
 
 if query:
     st.session_state.messages.append({"role": "user", "content": query})
     st.chat_message("user").markdown(query)
-    res = agent.invoke({"messages":[{"role": "user", "content": query}]})
+    res = agent.invoke(
+        {"messages":[{"role": "user", "content": query}]}, 
+        {"configurable": {"thread_id": "rafin420"}},
+        )
 
     st.chat_message("ai").markdown(res["messages"][-1].content)
     st.session_state.messages.append({"role":"ai", "content": res["messages"][-1].content})
+
+
 
 
 
