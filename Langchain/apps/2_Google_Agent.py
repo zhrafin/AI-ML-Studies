@@ -55,16 +55,19 @@ if query:
     res = agent.stream(
         {"messages":[{"role": "user", "content": query}]}, 
         {"configurable": {"thread_id": "rafin420"}},
+        # llm er message stream er jonno
         stream_mode="messages"
         )
     
     res_container = st.chat_message("ai")
 
-    # ekta ai space container reference toiri hocche
+    # ekta ai space container reference toiri hocche. Put all UI elements inside the AI chat bubble container.
     with res_container:
+        # This creates an empty placeholder inside the AI message bubble.
         space=st.empty()
         
         # extra variable anar karon response k chunk e bhenge then space e bhengge bhenge dekhano 
+        # Anything inside the block will appear inside that message bubble.
         message = ""
 
         for chunk in res:
@@ -72,12 +75,3 @@ if query:
             space.write(message)
     
         st.session_state.messages.append({"role":"ai", "content": message})
-
-
-
-
-
-
-
-
-
