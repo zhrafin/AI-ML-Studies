@@ -23,7 +23,7 @@ if "messeges" not in st.session_state:
 
 for messege in st.session_state.messeges:
     role = messege["role"]
-    content = messege ["content"]
+    content = messege["content"]
     st.chat_message(role).markdown(content)
 
 
@@ -41,26 +41,10 @@ if query:
     st.chat_message("user").markdown(query)
     st.session_state.messeges.append({"role": "user", "content": query})
 
-    res =  agent.stream(
-        {"messages":[{"role": "user", "content": query}]},
-        {"configurable": {"thread_id": "rafinAI"}},
-        stream_mode="messages"
+    res = agent.invoke(
+        {"messages": [{"role": "user", "content": query}]},
+        {"configurable": {"thread_id": "rafinAI"}}
     )
 
-    res_container = st.chat_message("ai")
-
-    with res_container:
-        space = st.space() 
-        
-        response = ""
-
-        for chunk in res:
-            response = response + chunk[0].content
-            space.write(response)
-
-        st.session_state.messeges.append({"role": "ai", "content": response})
-
-
-
-
-
+    st.chat_message("ai").markdown(res["messages"][-1].content)
+    st.session_state.messeges.append({"role": "ai", "content": res["messages"][-1].content})
