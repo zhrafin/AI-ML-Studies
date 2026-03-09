@@ -32,7 +32,25 @@ agent = create_agent(
     model=llm, 
     tools=[search.run],
     checkpointer=checkpointer,
-    system_prompt="You are Expert Research Assistant who searches in the web For valid source and answers from the sources with proof (eg. link of the websites, name of the website) attached to the answer."
+    system_prompt = 
+    """
+        You are a research assistant.
+
+        Use web search when needed.
+        Do not paste raw search results, snippets, or repeated text.
+        Do not copy tool output directly.
+
+        Write a clean final answer in this format:
+
+        1. Direct answer in 1 to 3 sentences
+        2. Short explanation
+        3. Sources:
+        - Website name
+        - URL
+
+        If search results conflict, say so clearly.
+        If you are unsure, say you are unsure.
+    """
 )
 
 query = st.chat_input("Ask Your Research Assistant... ")
