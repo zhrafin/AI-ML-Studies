@@ -10,7 +10,6 @@ from langgraph.checkpoint.memory import InMemorySaver
 st.set_page_config(page_title="Research Assistant", page_icon="🤖",)
 st.subheader("Research Assistant - GPT OSS")
 
-llm = ChatGroq(model="openai/gpt-oss-20b", streaming=True)
 search = GoogleSerperAPIWrapper()
 checkpointer = InMemorySaver()
 
@@ -35,16 +34,17 @@ if "chat_counter" not in st.session_state:
 # current_chat direct nile just CHat 1 ashbe. texts ashbe  current method e
 
 #st.session_state.sessions e thake
-"""st.session_state.sessions = {
-    "Chat 1": [
-        {"role": "user", "content": "Hello"},
-        {"role": "assistant", "content": "Hi"}
-    ],
-    "Chat 2": [
-        {"role": "user", "content": "Explain AI"}
-    ]
-}
-"""
+# st.session_state.sessions = {
+#     "Chat 1": [
+#         {"role": "user", "content": "Hello"},
+#         {"role": "assistant", "content": "Hi"}
+#     ],
+#     "Chat 2": [
+#         {"role": "user", "content": "Explain AI"}
+#     ]
+# }
+
+
 current_messages = st.session_state.sessions[st.session_state.current_chat]
 
 # Existing message print korte thakbo
@@ -107,44 +107,57 @@ with st.sidebar:
                 st.rerun()
 
 
+# Agent Build from here
 
+def build_agent(model_name: str, enable_web_search: bool):
+    llm = ChatGroq(model=model_name)
+    
+    tools = []
 
-agent = create_agent(
-    model=llm, 
-    tools=[search.run],
-    checkpointer=checkpointer,
-    system_prompt = 
-    """
-        You are a research assistant.
+    if enable_web_search:
+        tools=[search.run]
 
-        Use web search when needed.
-        Do not paste raw search results, snippets, or repeated text.
-        Do not copy tool output directly.
+    agent = create_agent(
+        model=llm,
+        tools=tools,
+        checkpointer=checkpointer,
+        system_prompt=
+        """
+            You are a research assistant.
 
-        Write a clean final answer in this format:
+            Use web search when needed.
+            Do not paste raw search results, snippets, or repeated text.
+            Do not copy tool output directly.
 
-        1. Direct answer in 1 to 3 sentences
-        2. Short explanation
-        3. Sources:
-        - Website name
-        - URL
+            Write a clean final answer in this format:
 
-        If search results conflict, say so clearly.
-        If you are unsure, say you are unsure.
-    """
-)
+            1. Direct answer in 1 to 3 sentences
+            2. Short explanation
+            3. Sources:
+            - Website name
+            - URL
+
+            If search results conflict, say so clearly.
+            If you are unsure, say you are unsure.
+        """
+    )
+
+    return agent
+
+agent = build_agent(model_name, enable_web_search)
+
 
 query = st.chat_input("Ask Your Research Assistant... ")
 
 if query:
     st.chat_message("user").markdown(query)
-    st.session_state.messeges.append({"role": "user", "content": query})
+    current_messages.append({"role": "user", "content": query})
 
     res = agent.invoke(
         {"messages": [{"role": "user", "content": query}]},
-        {"configurable": {"thread_id": "rafinAI"}}
+        {"configurable": {"thread_id": st.session_state.current_chat}}
     )
 
     st.chat_message("ai").markdown(res["messages"][-1].content)
-    st.session_state.messeges.append({"role": "ai", "content": res["messages"][-1].content})
+    current_messages.append({"role": "ai", "content": res["messages"][-1].content})
 
