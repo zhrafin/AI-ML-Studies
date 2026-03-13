@@ -1,4 +1,4 @@
-# Research Paper Tracke
+# Research Paper Tracker AI
 
 *A simple Streamlit chat app for managing research papers*
 
