@@ -42,6 +42,7 @@ db.run("""
 CREATE TABLE IF NOT EXISTS papers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL UNIQUE,
+    link TEXT NOT NULL UNIQUE,
     abstract TEXT,
     summary TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -78,7 +79,7 @@ INSERT OR IGNORE INTO projects (name) VALUES
 
 # Tool: Add paper directly if web search off
 @tool
-def add_paper_direct(title:str, link) -> str:
+def add_paper_direct(title: str, link: str = "") -> str:
     """
     Add a Paper title to the database.
 
@@ -86,8 +87,8 @@ def add_paper_direct(title:str, link) -> str:
         title: Title of the research paper.
     """
 
-    safe_title = title.replace("'", "''").strip()
-    safe_link = link.replace("'", "''").strip()
+    safe_title = (title or "").replace("'", "''").strip()
+    safe_link = (link or "").replace("'", "''").strip()
 
     try:
         db.run(f"""
@@ -119,7 +120,7 @@ def find_paper_online(title:str) -> str:
     # ekhane "organic" ekta peram jeta bujhay normal search results gula jeno dekhay not ads
     # ekhane organic or normal results na paile empty string nibe
     # get() user korle always empty value handle korte hobe otherwise crash korbe
-    organic_results = results.get("Organic", [])
+    organic_results = results.get("organic", [])
 
     if not organic_results:
         return f"No web search found for the {title}"
@@ -132,12 +133,13 @@ def find_paper_online(title:str) -> str:
 
         # proti title er shathe jodi link pay tailei ei list e rakhbo, naile na
         if candidate_title and candidate_link:
-            matches.append(
-                candidate_title,
-                candidate_link
-            )
-        else:
-            return "No Useful matches found."
+            matches.append({
+                "title": candidate_title,
+                "link": candidate_link
+            })
+
+    if not matches:
+        return f"No useful matches found for '{title}'."
         
     
 
@@ -154,15 +156,32 @@ def find_paper_online(title:str) -> str:
     return "\n\n".join(response)
 
 
-
-
+# Confirm korar por add kora
+@tool
+def confirm_add_paper(choice: int) -> str:
+    """
+    Confirm one of the previously found paper matches and add it to the database.
+    Args:
+        choice: Number of the paper to add from the suggested list
+    """
     
+    matches = st.session_state.pending_paper_matches
 
-
+    if choice < 1 or choice > 5:
+        return f"Invalid paper number and insert a value between 1 to 5"
+    else:
+        title = matches[choice-1]["title"]
+        link = matches[choice-1]["link"]
     
-
-
-    
+    try:
+        db.run(f"""
+            INSERT OR IGNORE INTO papers (title, link)
+            VALUES ('{title}', '{link}');
+        """)
+        st.session_state.pending_paper_matches = []
+        return f"Paper '{title}' added successfully."
+    except Exception as e:
+        return f"Failed to add paper '{title}'. Error: {str(e)}"   
 
 
 llm = ChatGroq(model="openai/gpt-oss-20b")
@@ -175,20 +194,19 @@ search = GoogleSerperAPIWrapper()
 system_prompt = """
 You are a research paper tracker assistant.
 
-You help the user manage papers in a database.
-
-Use the available tools when needed.
-When the user asks to add a paper, use the add_paper tool.
-Be concise and helpful.
+Rules:
+1. If web search is enabled and the user asks to add a paper, first use the find_paper_online tool.
+2. If exact or similar matches are found, ask the user to confirm one option.
+3. If the user says something like 'confirm paper 1', use the confirm_add_paper tool.
+4. If web search is disabled, use add_paper_direct and save the title exactly as given.
+5. Be concise and clear.
 """
 
 def build_agent(enable_web_search: bool):
-    base_tools = custom_tools
-
     if enable_web_search:
-        agent_tools = base_tools + [search.run]
+        agent_tools = [find_paper_online, confirm_add_paper, add_paper_direct]
     else:
-        agent_tools = base_tools 
+        agent_tools = [add_paper_direct]
 
     agent = create_agent(
         model=llm,
