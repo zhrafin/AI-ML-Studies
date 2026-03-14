@@ -141,8 +141,6 @@ def find_paper_online(title:str) -> str:
     if not matches:
         return f"No useful matches found for '{title}'."
         
-    
-
     st.session_state.pending_paper_matches = matches
 
     response =  [f"I have found possible papers for {title}"]
