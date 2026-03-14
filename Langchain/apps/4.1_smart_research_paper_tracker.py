@@ -233,10 +233,11 @@ def assign_paper_to_project(title:str, project_name:str):
         return f"Failed to assign paper to project. Error: {str(e)}"
 
 @tool
-def summarize_abstract(abstract: str):
+def summarize_abstract(title: str, abstract: str):
     """
     Summarize the research paper abstract
     Args:
+        title: The title of the research paper
         abstract: This is the abstract of the research paper
     """
     try:
@@ -252,6 +253,26 @@ def summarize_abstract(abstract: str):
         return f"failed to summarize the abstract. Error {str(e)}"
 
 
+@tool
+def add_summary_abstract_to_db(title: str, abstract: str):
+    """
+    It will add the summarized abstract to the database
+    Args:
+        title: The title of the research paper
+        abstract: This is the summarized abstract of the research paper
+    """
+
+    try:
+        db.run(f"""
+        UPDATE papers
+        SET abstract = '{abstract}',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE title = '{title}';
+        """         
+        )
+        return "Abstract Summary added successfully"
+    except Exception as e:
+        return f"Error adding Abstract {str(e)}"
 
 
 llm = ChatGroq(model="openai/gpt-oss-20b")
