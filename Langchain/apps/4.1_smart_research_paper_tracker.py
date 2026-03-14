@@ -188,7 +188,6 @@ def list_papers():
     """
     List all the saved papers
     """
-
     try:
         results = db.run("""
         SELECT title, link
@@ -198,12 +197,66 @@ def list_papers():
         return results
     except Exception as e:
         return f"Failed to list {str(e)}"
+    
+
+@tool 
+def assign_paper_to_project(title:str, project_name:str):
+    """
+    Assign a saved paper to a project.
+    Args:
+        title: Title of the research paper
+        project_name: Name of the project 
+    """
+    try:
+        paper_result = db.run(f"""
+        SELECT id FROM papers
+        WHERE title = '{title}'
+        LIMIT 1;
+        """)
+        project_result = db.run(f"""
+        SELECT id FROM projects
+        WHERE name = '{project_name}'
+        LIMIT 1;
+        """)
+
+        paper_id = paper_result.strip().replace("[", "").replace("]", "").replace("(", "").replace(")", "").replace(",", "")
+        project_id = project_result.strip().replace("[", "").replace("]", "").replace("(", "").replace(")", "").replace(",", "")
+        
+        db.run(f"""
+        INSERT OR IGNORE INTO paper_projects (paper_id, project_id)
+        VALUES ({paper_id}, {project_id});
+        """)
+        
+        return f"Paper '{title}' has been assigned to project '{project_name}'."
+
+    except Exception as e:
+        return f"Failed to assign paper to project. Error: {str(e)}"
+
+@tool
+def summarize_abstract(abstract: str):
+    """
+    Summarize the research paper abstract
+    Args:
+        abstract: This is the abstract of the research paper
+    """
+    try:
+        response=llm.invoke("""
+            Summarize the following research paper abstract in 3 to 5 simple sentences.
+            Focus on:
+            1. What the paper is about
+            2. What method or idea it uses
+            3. Why it matters
+        """)
+        return response.content
+    except Exception as e:
+        return f"failed to summarize the abstract. Error {str(e)}"
+
+
+
 
 llm = ChatGroq(model="openai/gpt-oss-20b")
 
 toolkit = SQLDatabaseToolkit(db=db, llm=llm)
-sql_tools = toolkit.get_tools()
-custom_tools = [add_paper_direct]
 search = GoogleSerperAPIWrapper()
 
 system_prompt = """
@@ -212,19 +265,28 @@ You are a research paper tracker assistant.
 Rules:
 1. If web search is enabled and the user asks to add a paper, use find_paper_online first.
 2. If matches are found, ask the user to confirm one option.
-3. If the user says something like 'confirm paper 1', use confirm_add_paper.
+3. If the user replies with a number like 1 or 2, use confirm_add_paper with that number.
 4. If web search is disabled, use add_paper_direct and save the title exactly as given.
 5. If the user asks to show, list, or display saved papers, use list_papers.
-6. Do not invent links.
-7. Be concise and clear.
-8. If the user asks to find a paper or add a paper, use find_paper_online when web search is enabled.
+6. If the user asks to assign a paper to a project, use assign_paper_to_project.
+7. If the user provides an abstract and asks for a summary, use summarize_abstract.
+8. Do not invent links.
+9. Be concise and clear.
 """
 
 def build_agent(enable_web_search: bool):
     if enable_web_search:
-        agent_tools = [find_paper_online, confirm_add_paper, add_paper_direct, list_papers]
+        agent_tools = [find_paper_online, 
+                       confirm_add_paper, 
+                       add_paper_direct, 
+                       list_papers, 
+                       assign_paper_to_project, 
+                       summarize_abstract]
     else:
-        agent_tools = [add_paper_direct, list_papers]
+        agent_tools = [add_paper_direct, 
+                       list_papers, 
+                       assign_paper_to_project, 
+                       summarize_abstract]
 
     agent = create_agent(
         model=llm,
@@ -232,14 +294,10 @@ def build_agent(enable_web_search: bool):
         checkpointer=st.session_state.memory,
         system_prompt=system_prompt,
     )
-
     return agent
 
 
-
-
 agent = build_agent( enable_web_search)
-
 
 query = st.chat_input("Ask Your Research Assistant... ")
 
