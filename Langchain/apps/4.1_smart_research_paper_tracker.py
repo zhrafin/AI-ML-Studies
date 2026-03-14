@@ -42,7 +42,7 @@ db.run("""
 CREATE TABLE IF NOT EXISTS papers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL UNIQUE,
-    link TEXT NOT NULL UNIQUE,
+    link TEXT,
     abstract TEXT,
     summary TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -241,32 +241,35 @@ def summarize_abstract(title: str, abstract: str):
         abstract: This is the abstract of the research paper
     """
     try:
-        response=llm.invoke("""
+        response=llm.invoke(f"""
             Summarize the following research paper abstract in 3 to 5 simple sentences.
             Focus on:
             1. What the paper is about
             2. What method or idea it uses
             3. Why it matters
+                            
+            Title: {title}
+            Abstract: {abstract}
         """)
-        return response.content
+        return response.content.strip()
     except Exception as e:
         return f"failed to summarize the abstract. Error {str(e)}"
 
 
 @tool
-def add_summary_abstract_to_db(title: str, abstract: str):
+def add_summary_abstract_to_db(title: str, summary: str):
     """
     It will add the summarized abstract to the database
     Args:
         title: The title of the research paper
-        abstract: This is the summarized abstract of the research paper
+        summary: This is the summarized summary of the research paper
     """
 
     try:
         db.run(f"""
         UPDATE papers
-        SET abstract = '{abstract}',
-            updated_at = CURRENT_TIMESTAMP
+        SET abstract = '{summary}',
+        updated_at = CURRENT_TIMESTAMP
         WHERE title = '{title}';
         """         
         )
@@ -302,12 +305,14 @@ def build_agent(enable_web_search: bool):
                        add_paper_direct, 
                        list_papers, 
                        assign_paper_to_project, 
-                       summarize_abstract]
+                       summarize_abstract,
+                       add_summary_abstract_to_db]
     else:
         agent_tools = [add_paper_direct, 
                        list_papers, 
                        assign_paper_to_project, 
-                       summarize_abstract]
+                       summarize_abstract,
+                       add_summary_abstract_to_db]
 
     agent = create_agent(
         model=llm,
@@ -333,6 +338,3 @@ if query:
 
     st.chat_message("ai").markdown(res["messages"][-1].content)
     st.session_state.messages.append({"role": "ai", "content": res["messages"][-1].content})
-        
-    
-
