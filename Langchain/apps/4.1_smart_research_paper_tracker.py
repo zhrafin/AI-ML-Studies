@@ -182,7 +182,22 @@ def confirm_add_paper(choice: int) -> str:
         return f"Paper '{title}' added successfully."
     except Exception as e:
         return f"Failed to add paper '{title}'. Error: {str(e)}"   
+    
+@tool
+def list_papers():
+    """
+    List all the saved papers
+    """
 
+    try:
+        results = db.run("""
+        SELECT title, link
+        FROM papers
+        ORDER BY created_at DESC;
+        """)
+        return results
+    except Exception as e:
+        return f"Failed to list {str(e)}"
 
 llm = ChatGroq(model="openai/gpt-oss-20b")
 
@@ -195,18 +210,21 @@ system_prompt = """
 You are a research paper tracker assistant.
 
 Rules:
-1. If web search is enabled and the user asks to add a paper, first use the find_paper_online tool.
-2. If exact or similar matches are found, ask the user to confirm one option.
-3. If the user says something like 'confirm paper 1', use the confirm_add_paper tool.
+1. If web search is enabled and the user asks to add a paper, use find_paper_online first.
+2. If matches are found, ask the user to confirm one option.
+3. If the user says something like 'confirm paper 1', use confirm_add_paper.
 4. If web search is disabled, use add_paper_direct and save the title exactly as given.
-5. Be concise and clear.
+5. If the user asks to show, list, or display saved papers, use list_papers.
+6. Do not invent links.
+7. Be concise and clear.
+8. If the user asks to find a paper or add a paper, use find_paper_online when web search is enabled.
 """
 
 def build_agent(enable_web_search: bool):
     if enable_web_search:
-        agent_tools = [find_paper_online, confirm_add_paper, add_paper_direct]
+        agent_tools = [find_paper_online, confirm_add_paper, add_paper_direct, list_papers]
     else:
-        agent_tools = [add_paper_direct]
+        agent_tools = [add_paper_direct, list_papers]
 
     agent = create_agent(
         model=llm,
