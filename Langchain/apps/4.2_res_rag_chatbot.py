@@ -1,95 +1,66 @@
-from dotenv import load_env
+from dotenv import load_dotenv
+load_dotenv()
 
-from langchain_ollama import OllamaEmbeddings
-from langchain_groq import ChatGroq
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_community.chat_message_histories import StreamlitChatMessageHistory
-from langchain_core.callbacks.base import BaseCallbackHandler
-from langchain_community.document_loaders import PyMuPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores.chroma import Chroma
-from operator import itemgetter
 import streamlit as st
 import tempfile
 import os
 import pandas as pd
 
+from langchain_groq import ChatGroq
+from langchain.agents import create_agent
+from langgraph.checkpoint.memory import InMemorySaver
+from langchain.tools import tool
+from langchain_ollama import OllamaEmbeddings
+from langchain_community.document_loaders import PyMuPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores.chroma import Chroma
+from langchain_core.callbacks.base import BaseCallbackHandler
 
-st.set_page_config(page_title="Research Paper QA Chatbot", page_icon="")
-st.title("Welcome to the Research Paper QA Chatbot")
+st.set_page_config(page_title="File QA Chatbot", page_icon="🤖")
+st.title("File QA RAG Chatbot")
 
-def configure_retriever(file_paths):
-    docs = []
 
-    for paths in file_paths:
-        loader = PyMuPDFLoader(paths)
-        # extend use korar karon flatlist paoa jay jeno 
-        docs.extend(loader.load())
+if "memory" not in st.session_state:
+    st.session_state.memory = InMemorySaver()
 
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, 
-                                                chunk_overlap=200)
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-    doc_chunks = text_splitter.split_documents(docs)
+# ekahen amar shob pdf thakbe, refresh e pdf haray jabe na
+if "retriever" not in st.session_state:
+    st.session_state.retriever = None
 
-    embeddings_model = OllamaEmbeddings(
-        model="llama3",
+if "last_sources" not in st.session_state:
+    st.session_state.last_sources = []
+
+for message in st.session_state.messages:
+    st.chat_message(message("role")).markdown(message("content"))
+
+# Sidebar creation
+with st.sidebar:
+    st.subheader("Upload and Seletct")
+
+    model_name=st.selectbox(
+        "Select Model",
+        ["openai/gpt-oss-20",
+         "openai/gpt-oss-120b",
+         "llama-3.1-8b-instant"],
+         index=0
     )
 
-    vectordb = Chroma.from_documents(doc_chunks, embeddings_model)
-
-    retriever = vectordb.as_retriever()
-    return retriever
+    upload_files = st.file_uploader(
+        "Upload PDF Files",
+        type=["pdf"],
+        accept_multiple_files=True
+    )
 
 
 class StreamHandler(BaseCallbackHandler):
-    def __init__(self, container, initial_text=""):
+    def __init__(self, container):
         self.container = container
-        self.text = initial_text
+        self.text = ""
 
-    def on_llm_new_token(self, token:str, **kwargs):
+    def new_tokens(self, token, **kwargs):
         self.text+=token
         self.container.markdown(self.text)
-
         
-uploaded_files = st.sidebar.file_uploader(
-    label="Upload PDF files", type=["pdf"],
-    accept_multiple_files=True
-)
-
-
-retriever = configure_retriever(uploaded_files)
-
-
-llm = ChatGroq(model="openai/gpt-oss-120b", streaming=True)
-
-qa_template = """
-Use only the following pieces of context to answer the question at the end.
-If you don't know the answer, just say that you don't know,
-don't try to make up an answer. Keep the answer as concise as possible.
-
-{context}
-
-Question: {question}
-"""
-
-qa_prompt = ChatPromptTemplate.from_template(qa_template)
-
-def merging_docs(docs):
-    return "\n\n".join([doc.page_content for doc in docs])
-
-# this is a fixed simple rag chain, jodi aro kichu chai, add hobe
-qa_rag_chain = ({
-    # question niye relevent contexts nibe doccuments theke
-    "context": itemgetter("question") 
-        |
-    retriever # retrieve korbe
-        |
-    merging_docs,
-    "question": itemgetter("question")  # arge korbe docs and abar qquestion nibe
-
-}
-  |
-qa_prompt
-  | 
-llm # prompt shoho llm k invoke korbe
-)
