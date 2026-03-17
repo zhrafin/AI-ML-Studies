@@ -64,3 +64,53 @@ class StreamHandler(BaseCallbackHandler):
         self.text+=token
         self.container.markdown(self.text)
         
+
+def build_retriever(upload_files):
+    #shob textt store korbo. docs = all pages from all PDFs
+    docs = []
+
+    # temporary folder/directory toiri jekhane shob files thakbe. 
+    # source uploaded_files, dest temp dir
+    temp_dir = tempfile.TemporaryDirectory()
+
+    # prottek the input files er kaaj
+    for file in upload_files:
+        #Save each file into the folder
+        file_path = os.path.join(temp_dir.name, file.name)
+
+        ## SAVING THE FILES
+        # turning streamlit files into memory
+        # open() for read and write
+        # "wb" = write binary file, model er jonno PDF files are not texts they are binary
+        # with is a safe wayy to open files
+        # we are using f to store opened file in the variable 
+        with open(file_path, "wb") as f:
+            f.write(file.getvalue())
+
+        # Reading the files
+        loader = PyMuPDFLoader(file_path)
+        docs.extend(loader.load())
+
+    text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size = 1500,
+            chunk_overlap = 200
+    )
+
+    doc_chunks = text_splitter.split_documents(docs)
+
+ 
+    embeddings_model = OllamaEmbeddings(
+        model="llama3",
+    )       
+
+    vectordb = Chroma.from_documents(
+        documents=doc_chunks,
+        embedding=embeddings_model
+    )
+
+    #database theke relevent obects aina dibe
+    # 
+    retriever = vectordb.as_retriever(search_kwargs={"k": 3})
+    return retriever
+
+        
