@@ -77,8 +77,19 @@ qa_prompt = ChatPromptTemplate.from_template(qa_template)
 def merging_docs(docs):
     return "\n\n".join([doc.page_content for doc in docs])
 
+# this is a fixed simple rag chain, jodi aro kichu chai, add hobe
 qa_rag_chain = ({
-    "context": 
+    # question niye relevent contexts nibe doccuments theke
+    "context": itemgetter("question") 
+        |
+    retriever # retrieve korbe
+        |
+    merging_docs,
+    "question": itemgetter("question")  # arge korbe docs and abar qquestion nibe
 
-
-})
+}
+  |
+qa_prompt
+  | 
+llm # prompt shoho llm k invoke korbe
+)
