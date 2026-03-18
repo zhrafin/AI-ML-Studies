@@ -114,3 +114,28 @@ def build_retriever(upload_files):
     return retriever
 
         
+def collect_sources(docs):
+    #shob source collect kore rakhar jonno
+    source = []
+    # set only unique value store kore
+    # automatically duplicate values ignore kore
+    seen = set()
+
+    for doc in docs:
+        source = doc.metadata.get("source", "unknown")
+        page =  doc.metadata.get("page", "N/A")
+
+        key = (source, page)
+
+        if key not in seen:
+            seen.add(key)
+            source.append({
+                "source":source,
+                "page":page,
+                "content": doc.page_content[:200]
+
+            })
+
+    return source[:3]
+
+    
