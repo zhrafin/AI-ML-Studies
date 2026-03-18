@@ -138,4 +138,92 @@ def collect_sources(docs):
 
     return source[:3]
 
+
+if upload_files:
+    st.session_state.retriever = build_retriever(upload_files)
+else:
+    st.info("Upload PDF files from the sidebar.")
+    st.stop()
+
+@tool
+def search_papers(question: str) -> str:
+    """
+    Search the uploaded PDF paper and return relevant context
+
+    Args: 
+        question: User question about the uploaded papers 
+    """
+
+    retriever = st.session_state.retriever
+
+    if retriever is None:
+        return "No PDFs are uploaded"
     
+    docs = retriever.invoke(question)
+    st.session_state.last_sources = collect_sources(docs)
+
+    context = "\n\n".join(doc.page_content for doc in docs)
+
+    if not context.strip():
+        return "No relevant context was found in the uploaded papers."
+
+    return context
+
+
+
+llm = ChatGroq(
+    model=model_name, 
+    streaming=True
+    )
+
+system_prompt = """
+You are a research paper question answering assistant.
+
+Rules:
+1. The user asks questions about uploaded PDF research papers.
+2. Always use the search_papers tool first when the user asks about paper content.
+3. Use only the retrieved context to answer.
+4. If the context does not contain the answer, say you do not know.
+5. Do not invent facts.
+6. Be clear and concise.
+7. If helpful, mention that sources are shown below the answer.
+"""
+
+def build_agent():
+    agent_tools = [search_papers]
+
+    agent = create_agent(
+        model=llm,
+        tools=agent_tools,
+        checkpointer=st.session_state.memory,
+        system_prompt=system_prompt,
+    )
+    return agent
+
+agent = build_agent()
+
+
+query = st.chat_input("Ask your research assistant...")
+
+if query:
+    st.chat_message("user").markdown(query)
+    st.session_state.messages.append({"role": "user", "content": query})
+
+    with st.chat_message("assistant"):
+        stream_box = st.empty()
+        stream_handler = StreamHandler(stream_box)
+
+        res = agent.invoke(
+            {"messages": [{"role": "user", "content": query}]},
+            {
+                "configurable": {"thread_id": "single_chat"},
+                "callbacks": [stream_handler]
+            }
+        )
+
+        final_answer = res["messages"][-1].content
+
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": final_answer
+        })
