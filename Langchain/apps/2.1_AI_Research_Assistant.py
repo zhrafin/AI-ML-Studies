@@ -24,7 +24,6 @@ if "current_chat" not in st.session_state:
 if "chat_counter" not in st.session_state:
     st.session_state.chat_counter = 1
 
-
 # Sidebar Start
 with st.sidebar:
     st.header("Settings")
