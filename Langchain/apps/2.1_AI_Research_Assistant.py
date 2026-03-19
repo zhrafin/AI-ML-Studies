@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()
+
 from langchain_groq import ChatGroq
 from langchain.agents import create_agent
 import streamlit as st
@@ -116,7 +117,6 @@ If you are unsure, say you are unsure.
     )
 
     return agent
-
 
 agent = build_agent(model_name, enable_web_search)
 
