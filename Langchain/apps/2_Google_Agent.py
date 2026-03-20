@@ -14,14 +14,12 @@ llm = ChatGroq(model="openai/gpt-oss-20b", streaming="True")
 search = GoogleSerperAPIWrapper()
 tools = [search.run]
 
-
 # ami jodi normal memory variable er moddhe rakhi tahole dekhga jabe proti new question e memory address change hobe
 # thats why created st.session_state er memory variable 
 # if make sure korbe j ekbar object toiri houar por memory object abar na toiri hoy
 
 if "memory" not in st.session_state: 
     st.session_state.memory = InMemorySaver()
-
 
 agent = create_agent(
     model=llm, 
@@ -44,8 +42,6 @@ for message in st.session_state.messages:
     content = message["content"] # user query
     # creates a chat bubble for the sender.
     st.chat_message(role).markdown(content)
-
-
 
 
 if query:
