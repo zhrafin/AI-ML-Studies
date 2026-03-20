@@ -7,7 +7,6 @@ from langchain_community.utilities import GoogleSerperAPIWrapper
 import streamlit as st
 from langgraph.checkpoint.memory import InMemorySaver  
 
-
 st.subheader("Ask GPT-OSS with Search Tool")
 st.markdown("Test GPT-OSS-20b")
 
