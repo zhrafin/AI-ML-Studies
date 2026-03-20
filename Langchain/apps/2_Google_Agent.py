@@ -30,7 +30,6 @@ agent = create_agent(
 
 query = st.chat_input("Ask anything:")
 
-
 # If "messages" does not exist, this line creates it and sets it to an empty list.
 #Prev chat dhore rakhar jonno use hocche
 if "messages" not in st.session_state:
@@ -42,7 +41,6 @@ for message in st.session_state.messages:
     content = message["content"] # user query
     # creates a chat bubble for the sender.
     st.chat_message(role).markdown(content)
-
 
 if query:
     st.session_state.messages.append({"role": "user", "content": query})
