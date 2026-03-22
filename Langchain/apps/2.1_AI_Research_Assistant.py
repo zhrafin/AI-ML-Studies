@@ -73,7 +73,6 @@ with st.sidebar:
                 st.session_state.current_chat = list(st.session_state.sessions.keys())[0]
                 st.rerun()
 
-
 # current chat messages after sidebar update
 current_messages = st.session_state.sessions[st.session_state.current_chat]
 
