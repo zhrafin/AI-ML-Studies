@@ -19,7 +19,6 @@ from langchain_core.callbacks.base import BaseCallbackHandler
 st.set_page_config(page_title="File QA Chatbot", page_icon="🤖")
 st.title("File QA RAG Chatbot")
 
-
 if "memory" not in st.session_state:
     st.session_state.memory = InMemorySaver()
 
