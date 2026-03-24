@@ -153,7 +153,6 @@ def find_paper_online(title:str) -> str:
     response.append("Reply with something like: confirm paper 1")
     return "\n\n".join(response)
 
-
 # Confirm korar por add kora
 @tool
 def confirm_add_paper(choice: int) -> str:
