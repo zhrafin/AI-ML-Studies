@@ -14,6 +14,7 @@ The design stays simple at the beginning. I focus on reliable paper tracking fir
 
 ---
 
+
 ## Development Strategy
 
 I split the project into two phases.
