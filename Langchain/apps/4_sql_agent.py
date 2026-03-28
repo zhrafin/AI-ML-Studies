@@ -10,7 +10,6 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langchain.agents import create_agent
 import streamlit as st
 
-
 st.subheader("Taskbot - OSS")
 
 if "memory" not in st.session_state:
@@ -42,8 +41,6 @@ db.run("""
 llm = ChatGroq(model="openai/gpt-oss-20b")
 toolkit = SQLDatabaseToolkit(db=db, llm=llm)
 tools = toolkit.get_tools()
-
-
 
 system_prompt = """
 You are a task management assistant that interacts with a SQL database containing a 'tasks' table.
