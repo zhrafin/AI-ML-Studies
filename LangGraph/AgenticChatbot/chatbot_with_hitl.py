@@ -1,39 +1,36 @@
 from langgraph.graph import StateGraph, START, END
 from typing import TypedDict, Annotated
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
-from dotenv import load_dotenv
-
-from langgraph.checkpoint.sqlite import SqliteSaver
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_ollama import OllamaEmbeddings
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain_community.vectorstores import FAISS
-
+from langchain_google_genai import ChatGoogleGenerativeAI
+from dotenv import load_dotenv
+from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph.message import add_messages
-from langchain_groq import ChatGroq
-
 import sqlite3
 from langgraph.prebuilt import ToolNode, tools_condition
 from langchain_tavily import TavilySearch
 from langchain_core.tools import tool
+from langchain_groq import ChatGroq
 import math
 import requests
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_community.vectorstores import FAISS
 import os 
 from typing import Any
 from langgraph.types import interrupt, Command
 
+
 load_dotenv()
 
 
-
-# LLM 
 llm = ChatGroq(
     model="qwen/qwen3.8-27b"
     )
 
 embeddings = OllamaEmbeddings(model="nomic-embed-text")
+
 
 def ingest_rag_document(file_path):
     DB_PATH = "faiss_db"
@@ -43,7 +40,7 @@ def ingest_rag_document(file_path):
     chunks = splitter.split_documents(docs)
     vector_store = FAISS.from_documents(chunks, embeddings)
     vector_store.save_local(DB_PATH)
-
+    
 
 
 def get_retriever():
@@ -63,7 +60,9 @@ def get_retriever():
 
 
 
-# Tools
+
+# rag tool
+
 @tool
 def rag_tool(query: str) -> str:
     """
@@ -96,6 +95,10 @@ def rag_tool(query: str) -> str:
 
     return "\n\n".join(formatted_documents)
 
+
+
+
+# Tools
 
 search_tool = TavilySearch(
     max_results=5,
@@ -142,6 +145,7 @@ def get_stock_price(symbol: str) -> dict:
     return r.json()
 
 
+
 @tool
 def purchase_stock(symbol: str, quantity: int) -> dict:
     """
@@ -171,6 +175,8 @@ def purchase_stock(symbol: str, quantity: int) -> dict:
         }
 
 
+
+
 @tool
 def get_current_weather(location: str) -> str:
     """
@@ -185,7 +191,6 @@ def get_current_weather(location: str) -> str:
     """
 
     api_key = os.getenv("OPENWEATHER_API_KEY")
-
 
     if not api_key:
         return (
@@ -312,7 +317,6 @@ class ChatState(TypedDict):
 
 # Nodes 1
 def chat_node(state: ChatState):
-    """LLM node that can answer directly or call an appropriate tool."""
 
     system_message = SystemMessage(
         content=(
@@ -323,15 +327,12 @@ def chat_node(state: ChatState):
             "Always retrieve relevant document content before answering PDF-related questions.\n"
             "- Use `search_tool` for current events, recent information, or information "
             "that requires an internet search.\n"
-            "- Use `calculator` for mathematical calculations. Do not calculate complex "
-            "expressions manually when the calculator is available.\n"
-            "- Use `get_stock_price` when the user asks for the current price of a stock.\n"
-            "- Use `get_current_weather` when the user asks about current weather for a location.\n\n"
+            "- Use `calculator` for mathematical calculations.\n"
+            "- Use `get_stock_price` for current stock prices.\n"
+            "- Use `get_current_weather` for current weather.\n\n"
 
             "Answer general questions directly when no tool is required. "
-            "Do not invent information from the uploaded document. "
-            "If the user asks about a PDF but no document is available, ask them to upload a PDF. "
-            "After receiving a tool result, provide a clear and helpful final answer."
+            "Do not invent information from uploaded documents."
         )
     )
 
@@ -342,7 +343,16 @@ def chat_node(state: ChatState):
 
     response = llm_with_tools.invoke(messages)
 
+    # Debugging
+    print("\n========== LLM DEBUG ==========")
+    print("LLM Response:", response.content)
+    print("Tool Calls:", response.tool_calls)
+    print("================================\n")
+
     return {"messages": [response]}
+
+
+
 
 # Nodes 2 - tool node
 tool_node = ToolNode(tools)
